@@ -6,6 +6,8 @@
 \usepackage{color}
 \usepackage{fontspec}
 \usepackage{minted}
+\usepackage{mathtools}
+\usepackage{hyperref}
 \newmintinline[lean]{lean4}{bgcolor=white}
 \newminted[leancode]{lean4}{fontsize=\footnotesize}
 \usemintedstyle{tango}  % a nice, colorful theme
@@ -13,6 +15,13 @@
 \usetheme{CambridgeUS}
 \usecolortheme{dove}
 \usefonttheme{serif}
+
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
 
 \DeclareMathOperator{\op}{\mathsf{op}}
 
@@ -31,14 +40,14 @@
     \frametitle{fold\{l,r\}}
     \begin{itemize}
         \item \textsf{foldl}: \ $(\alpha\to\beta\to\alpha)\to\alpha\to[\beta]\to\alpha$
-        \item \textsf{foldr}: \ $(\alpha\to\beta\to\beta)\to\alpha\to[\alpha]\to\beta$
+        \item \textsf{foldr}: \ $(\alpha\to\beta\to\beta)\to\beta\to[\alpha]\to\beta$
     \end{itemize}
 
     Examples:
 
     \begin{align*}
         \mathsf{foldl} & \ (\cdot + \cdot)\ 0\ \iota.4 &  & = 10 \\
-        \mathsf{foldr} & \quad \ldots                  &  & = 10
+        \mathsf{foldr} & \quad \cdots                  &  & = 10
     \end{align*}
 
 \end{frame}
@@ -47,7 +56,7 @@
     \frametitle{how do they look?}
     \begin{align*}
         \mathsf{foldl} & \ (\cdot + \cdot)\ 0\ \iota.4 &  & \iff (((0 + 1) + 2) + 3) + 4 \\
-        \mathsf{foldr} & \quad \ldots                  &  & \iff 1 + (2 + (3 + (4 + 0)))
+        \mathsf{foldr} & \quad \cdots                  &  & \iff 1 + (2 + (3 + (4 + 0)))
     \end{align*}
     \begin{figure}[h]
         \subfloat[foldl]{
@@ -89,7 +98,7 @@
     Compare:
     \begin{enumerate}
         \item $(((0 + 1) + 2) + 3) + 4$\hspace{1cm}\textbf{sequential}\hfill $O(\log n)$
-        \item $(0 + 1) + (2 + 3 + 4)$\hphantom{()}\hspace{1cm}\textbf{parallel}\hfill $\Omega(\log n), O(\log n)$
+        \item $(0 + 1) + (2 + 3 + 4)$\hphantom{()}\hspace{1cm}\textbf{parallel}\hfill $\Omega(\log n), O(n)$
     \end{enumerate}
     In other words, we would like to insert $+$ between elements.
 
@@ -120,8 +129,8 @@
 
     \begin{leancode}
         class Monoid (α: Type) where
-        zero: α
-        op: α -> α -> α
+            zero: α
+            op: α -> α -> α
     \end{leancode}
 
     e.g.\ for $+$,
@@ -146,41 +155,41 @@
     Sequential version of \textsf{reduce}:
     \begin{leancode}
         def reduce [m: Monoid α] (xs: List α): α :=
-        match xs with
-        | [] => Monoid.zero
-        | [x] => x
-        | x::xs => Monoid.op x (reduce xs)
+            match xs with
+            | [] => Monoid.zero
+            | [x] => x
+            | x::xs => Monoid.op x (reduce xs)
     \end{leancode}
     How about parallel?
     Split list to smaller list:
     \begin{leancode}
         class ListSlice (α : Type) where
-        l: List α
-        start: Nat
-        finish: Nat
+            l: List α
+            start: Nat
+            finish: Nat
     \end{leancode}
 \end{frame}
 \begin{frame}[fragile]
     \frametitle{parallel reduce}
     Parallel:
-    \begin{leancode}
-        partial def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
-        match xs.finish + 1 - xs.start with
-        | 0 => m.zero
-        | 1 => xs.l.get! xs.start
-        | 2 => m.op (xs.l.get! xs.start) (xs.l.get! (xs.start + 1))
-        | 3 =>
+\begin{leancode}
+def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
+    match xs.finish + 1 - xs.start with
+    | 0 => m.zero
+    | 1 => xs.l.get! xs.start
+    | 2 => m.op (xs.l.get! xs.start) (xs.l.get! (xs.start + 1))
+    | 3 =>
         m.op
-        (m.op (xs.l.get! xs.start) (xs.l.get! (xs.start + 1)))
-        (xs.l.get! (xs.start + 2))
-        | n + 4 =>
+            (m.op (xs.l.get! xs.start) (xs.l.get! (xs.start + 1)))
+            (xs.l.get! (xs.start + 2))
+    | n + 4 =>
         let n' := (n + 4) / 2
         let first_half := {xs with finish := xs.start + n' - 1}
         let second_half := {xs with start := xs.start + n'}
         m.op
-        (parreduce m first_half)
-        (parreduce m second_half)
-    \end{leancode}
+            (parreduce m first_half)
+            (parreduce m second_half)
+\end{leancode}
     \textbf{No data dependency i.e. Invocations can be done in parallel.}
 \end{frame}
 \section{folding with reduce}
@@ -202,7 +211,7 @@
         \operatorname{id} \circ f & = f \circ \operatorname{id} = f
     \end{align*}
     Thus we obtain
-    \mint[fontsize=\footnotesize]{lean4}|instance compose_monoid : Monoid (α -> α) :=  ⟨id, λ f g x => f (g x)⟩|
+    \mint[fontsize=\footnotesize]{lean4}|instance compose_monoid : Monoid (α -> α) := ⟨id, λ f g x => f (g x)⟩|
     Key idea: $\circ$ is associative.
 \end{frame}
 \begin{frame}[fragile]
@@ -213,21 +222,22 @@
     Now \textsf{foldr} would be
     \begin{leancode}
         def foldr (f: α -> β -> β) (init: β) (xs: List α): β :=
-        List.map f xs |> reduce compose_monoid <| init
+            List.map f xs |> reduce compose_monoid <| init
     \end{leancode}
     \textsf{foldl} is tricky:
     \mint[fontsize=\footnotesize]{cl}|(foldl #'- 0 (iota 4)) ; => ((-4 (-3 (-2 (-1 x)))) 0).|
     since it's \mintinline[fontsize=\footnotesize]{cl}{(f init xs_i)} instead of \mintinline[fontsize=\footnotesize]{cl}{(f xs_i init)}. Meaning we'll pre-fill rvalue without evaluating the whole call.
     \begin{leancode}
-        def fold_left (f: α -> β -> α) (init: α) (xs : List β): α :=
-        xs.map (λ x => λ init => f init x) |> reduce compose_monoid <| init
+        def fold_left (f: α -> β -> α) (init: α) (xs: List β): α :=
+            xs.map (λ x => λ init => f init x) 
+            |> reduce compose_monoid <| init
     \end{leancode}
-    
+
     \begin{itemize}
         \item A practical implementation of \textsf{mapReduce} is to fuse \textsf{map} and \textsf{reduce} together. Much efficient than what we have now.
         \item We write them separately for sake of clarity.
     \end{itemize}
-    
+
 \end{frame}
 \begin{frame}
     \frametitle{Performance: {\fontspec{Symbola}\char"1F4A9}}
@@ -239,14 +249,145 @@
 
 \end{frame}
 \section{finding monoid}
-To do this efficiently: 
-\begin{itemize}
-    \item factor out the folding function $f$ in terms of
-\end{itemize}
-\begin{equation*}
-    f\ z\ l = op\ z\ (g\ l)
-\end{equation*}
-\begin{itemize}
-    \item requires ingenuity
-\end{itemize}
+\subsection{conjugate transform}
+\begin{frame}
+    \frametitle{folding, Efficiently}
+    To do this efficiently:
+    \begin{itemize}
+        \item factor out the folding function $f$ in terms of
+              \begin{equation*}
+                  f\ z\ l = op\ z\ (g\ l)
+              \end{equation*}
+        \item requires ingenuity
+    \end{itemize}
+    e.g. length of a list: \mintinline[fontsize=\footnotesize]{lean4}|l.foldl (λ x _ => x + 1) 0|
+
+    With \texttt{mapReduce}, that is
+    \mint[fontsize=\footnotesize]{lean4}{l.map (Function.const Int 1) |> reduce ⟨0, (· + ·)⟩}
+    where
+    \begin{itemize}
+        \item $\op = (+)$
+        \item $g = (x: \mathsf{Int}\mapsto 1)$
+    \end{itemize}
+\end{frame}
+\begin{frame}
+    \frametitle{Principle: Conjugate Transform}
+    Guy Steele: the general principle/schema to transform a \textsf{foldl} is
+    \begin{align}
+        \mathsf{foldl}\ (f: \alpha\to\beta\to\alpha)\ (z: \alpha)\ (l: \beta) & = \mathsf{map}\ (g: \beta\to\sigma)\ l \notag      \\
+                                                                              & \rhd \mathsf{reduce}\ (m: \mathsf{Monoid}\ \sigma) \\
+                                                                              & \rhd (h: \sigma\to\alpha) \notag
+    \end{align}
+    \begin{itemize}
+        \item $g$, $h$ depends on $f$, $z$.
+        \item $\sigma$ shall be a ``bigger'' type that embeds $\alpha$, $\beta$ and there exists some associative operation and a unit element for it.
+              In before we chose \texttt{compose\_monoid} and $\alpha\to\alpha$ as type $\sigma$ to obtain a generalized fold.
+    \end{itemize}
+    \textbf{But how to find this $\sigma$, or broadly, how to find the corresponding monoid for $f$ ?}
+\end{frame}
+\subsection{examples of finding monoid}
+\begin{frame}[fragile]
+    \frametitle{example: subtract}
+    $(+)$ is very nice. $(\mathbb{Z},+)$ forms a abelian group. What about $(-)$:
+    \begin{itemize}
+        \item $\mathsf{foldl}\ (-)\ 10\ \iota.4 = 10 - (1 + 2 + 3 + 4) = 10 - \mathsf{foldl}\ (+)\ 0\ \iota.4$
+
+              thus $\mathsf{foldl}\ (-)\ z\ l = z - \mathsf{reduce}\ \langle 0,(+) \rangle\ l$
+        \item \textsf{foldr}\dots ?
+    \end{itemize}
+    $\mathsf{foldr}\ (-)\ z\ \iota.4 = 1 - (2 - (3 - (4 - z))) = 1 - 2 + 3 - 4 + z$
+    \begin{leancode}
+    instance sub_monoid : Monoid (Int × Bool) where
+        zero := (0, true)
+        op := fun ⟨x₁, b₁⟩ ⟨x₂, b₂⟩ =>
+            (if b₁ then x₁ + x₂ else x₁ - x₂, b₁ = b₂)
+
+    def int_foldr_sub (init: Int) (xs: List Int) : Int :=
+        let fst := 
+            xs.map (fun x: Int => (x, false)) 
+                |> reduce sub_monoid |> Prod.fst
+        if xs.length &&& 1 == 0 then init + fst else init - fst
+\end{leancode}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{example: Horner Rule}
+    How do we parse ints:
+    \begin{leancode}
+        s.foldl (fun acc c => acc * 10 + (c.toNat - '0'.toNat)) 0
+    \end{leancode}
+    that is, for a char sequence $s$, we have
+    \begin{alignat*}{2}
+        \mathsf{parseInt}\ s & = \sum{s_i \cdot r^i}\  &  & \text{where}\ r = 10 \\
+                             & = b_n\tag{Horner Rule}
+        \intertext{where $b$ is recursively defined:}
+        b_0                  & = 0 \cdot r             &  & + s_0                \\
+        b_1                  & = b_0 \cdot r           &  & + s_1                \\
+                             & \shortvdotswithin{=}
+        b_n                  & = b_{n-1} \cdot r       &  & + s_n
+    \end{alignat*}
+    \textbf{This recursive process is called horner rule}.
+\end{frame}
+\begin{frame}[fragile]
+    We'll build a monoid for the (non-associative) $(a, c)\mapsto \mathrm{a\cdot 10} + c$ (suppose we've mapped the chars to its codepoint)
+    Consider ``071'':
+    \begin{equation*}
+        \mathsf{parseInt}\ 071 = (\underbrace{(0 \cdot 10 + 0) \cdot 10}_{a \cdot 10} + 7) \cdot 10 + 1
+    \end{equation*}
+    \begin{itemize}
+        \item $\op = x,y \mapsto x \cdot r' + y$ where $r'$ could be $100$, $1000$, \ldots
+
+              We need to track $r'$:
+        \item $\op = (x,b_1), (y,b_2) \mapsto (x \cdot b_2 + y, b_1 \cdot b_2)$. (easy to prove associative)
+        \item has the unit $(0,1)$ where $(x,b) \op (0,1) = (0,1) \op (x,b) = (x,b)$
+    \end{itemize}
+    Thus we obtain
+    \begin{leancode}
+        instance horner_monoid: Monoid (Nat × Nat) :=
+            ⟨(0,1), λ (x, r₁) (y, r₂) => (x * r₂ + y, r₁ * r₂)⟩
+    \end{leancode}
+\end{frame}
+\begin{frame}[fragile]
+    We denote left composition i.e. $f,g\mapsto (x\mapsto f\ x \rhd g)$ as \mintinline{lean4}|~>| for the sake of brevity:
+\begin{leancode}
+    def comp_left (f: α -> β) (g: β -> γ): α -> γ := (λ x => f x |> g)
+    infixl: 20 " ~> " => comp_left
+\end{leancode}
+    And we get a parallel version of parseInt:\\
+    (much redundant cost here, but thats just a lean problem)
+    \begin{leancode}
+        def parseInt_alt : String -> Nat :=
+            String.toList
+            ~> List.map (λ c => c.toNat - '0'.toNat)
+            ~> List.map (λ x => (x, 10)) -- g
+            ~> reduce horner_monoid
+            ~> Prod.fst -- h
+    \end{leancode}
+\end{frame}
+\begin{frame}[fragile]
+    \frametitle{generalizing horner rule}
+    What about a general version of \texttt{horner\_monoid} i.e.
+    \[
+        \forall f,\exists m\ (m: \mathsf{Monoid},\,f: (\alpha\to\beta\to\alpha)\to f\ z\ x = m.\op\ (h\ z)\ x)
+    \]
+    This is similiar to that in the last section as both involves composition.
+\begin{leancode}
+    instance hmonoid [Monoid α] : Monoid (α × (α -> α)) where
+        zero := (Monoid.zero, id)
+        op :=
+            λ ⟨x₁, f₁⟩ ⟨x₂, f₂⟩ =>
+                (Monoid.op (f₂ x₁) x₂, f₁ ~> f₂)
+\end{leancode}
+    An efficient implementation will replace $\alpha\to\alpha$ with a value if possible.
+
+    e.g. in \texttt{parseInt} $f_1$, $f_2$ is just $(\cdot \times 10)$. It can be represented by that 10 instead of a function; and the composition is represented by the product of which.
+\end{frame}
+\begin{frame}{}
+    \centering \Huge
+    \emph{fin}\\
+    \vspace{1.5cm}
+    \huge{Thank You}
+    \blfootnote{see \href{https://okmij.org/ftp/Algorithms/map-monoid-reduce.html}{Oleg Kiselyov's article},\\
+     \quad\hphantom{Gsee }\href{https://web.archive.org/web/20091229162537/http://research.sun.com/projects/plrg/Publications/ICFPAugust2009Steele.pdf}{Guy Steele's ICFP 2009 Talk}}
+\end{frame}
 \end{document}

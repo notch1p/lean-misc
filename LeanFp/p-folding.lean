@@ -56,6 +56,10 @@ def fold_right (f: α -> β -> β) (init: β) (xs: List α): β :=
 def fold_left (f: α -> β -> α) (init: α) (xs : List β): α :=
   xs.map (fun x => fun init => f init x) |> reduce compose_monoid <| init
 
+#eval List.foldl (λ x _ => x + 1) 0 [1,2,3,4]
+
+#check Function.const Int 2
+
 #eval fold_left (α := Int) (β := Int) (· - ·) 10 [1,2,3,4]
 
 #eval [1,2,3,4].foldl (· - ·) 10
@@ -63,7 +67,7 @@ def fold_left (f: α -> β -> α) (init: α) (xs : List β): α :=
 instance sub_monoid : Monoid (Int × Bool) where
   zero := (0, true)
   op := fun ⟨x₁, b₁⟩ ⟨x₂, b₂⟩ =>
-    (if b₁ then x₁ + x₂ else x₁ - x₂, b₁ && b₂)
+    (if b₁ then x₁ + x₂ else x₁ - x₂, b₁ = b₂)
 
 def fold_right_sub (init: Int) (xs: List Int) : Int :=
   let fst := xs.map (fun x: Int => (x, false)) |> reduce sub_monoid |> Prod.fst
@@ -96,4 +100,6 @@ def parse_int_alt : String -> Nat :=
 
 instance hmonoid [Monoid α] : Monoid (α × (α -> α)) where
   zero := (Monoid.zero, id)
-  op := λ ⟨x₁, f₁⟩ ⟨x₂, f₂⟩ => (Monoid.op (f₂ x₁) x₂, f₁ ~> f₂)
+  op :=
+    λ ⟨x₁, f₁⟩ ⟨x₂, f₂⟩ =>
+      (Monoid.op (f₂ x₁) x₂, f₁ ~> f₂)
