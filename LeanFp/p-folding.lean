@@ -1,4 +1,3 @@
-import LeanCopilot
 class Monoid (α: Type) where
   zero: α
   op: α -> α -> α
@@ -47,14 +46,14 @@ instance compose_monoid : Monoid (α -> α) :=  ⟨id, λ f g x => f (g x)⟩
 #eval ([1,2,3,4].map Int.sub).map (λ x => x 10)
 
 def fold_right (f: α -> β -> β) (init: β) (xs: List α): β :=
-  List.map f xs |> reduce compose_monoid <| init
+  f <$> xs |> reduce compose_monoid <| init
 
 #eval fold_right (α := Int) (β := Int) (· - ·) 10 [1,2,3,4]
 
 #eval [1,2,3,4].foldr (fun x y => x - y) 10
 
 def fold_left (f: α -> β -> α) (init: α) (xs : List β): α :=
-  xs.map (fun x => fun init => f init x) |> reduce compose_monoid <| init
+  (fun x => fun init => f init x) <$> xs |> reduce compose_monoid <| init
 
 #eval List.foldl (λ x _ => x + 1) 0 [1,2,3,4]
 
@@ -70,10 +69,12 @@ instance sub_monoid : Monoid (Int × Bool) where
     (if b₁ then x₁ + x₂ else x₁ - x₂, b₁ = b₂)
 
 def fold_right_sub (init: Int) (xs: List Int) : Int :=
-  let fst := xs.map (fun x: Int => (x, false)) |> reduce sub_monoid |> Prod.fst
+  let fst := (fun x: Int => (x, false)) <$> xs |> reduce sub_monoid |> Prod.fst
   if xs.length &&& 1 == 0 then init + fst else init - fst
 
 #eval fold_right_sub 10 [1,2,3,4]
+
+#check (#[1,2,3] : Array Int)
 
 def parse_int (s: String): Int :=
   s.foldl (fun acc c => acc * 10 + (c.toNat - '0'.toNat)) 0

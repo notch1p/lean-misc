@@ -97,7 +97,7 @@
     \frametitle{Sequential BAD}
     Compare:
     \begin{enumerate}
-        \item $(((0 + 1) + 2) + 3) + 4$\hspace{1cm}\textbf{sequential}\hfill $O(\log n)$
+        \item $(((0 + 1) + 2) + 3) + 4$\hspace{1cm}\textbf{sequential}\hfill $O(n)$
         \item $(0 + 1) + (2 + 3 + 4)$\hphantom{()}\hspace{1cm}\textbf{parallel}\hfill $\Omega(\log n), O(n)$
     \end{enumerate}
     In other words, we would like to insert $+$ between elements.
@@ -113,7 +113,7 @@
 \subsection{monoid reduce}
 \begin{frame}
     \frametitle{monoid}
-    $\op: S\to S\to S$ must satisfy $\forall a,b,c,e\in S$,
+    $\op: S\to S\to S$ must satisfy $\forall a,b,c,i\in S$,
     \begin{align*}
         (a \op b) \op c & = a \op (b \op c) \tag*{Associativity}, \\
         a \op i         & = i \op a = a \tag*{Identity}.
@@ -143,7 +143,7 @@
     \begin{align*}
         \mathsf{reduce} & \ ::\ \alpha      &  & \Rightarrow \textsf{Monoid}\ \alpha \to [\alpha] \to \alpha, \\
         \mathsf{reduce} & \ m\ \mathsf{nil} &  & \equiv m.\mathsf{zero},                                      \\
-        \mathsf{reduce} & \ m\ [x]          &  & \equiv [x].
+        \mathsf{reduce} & \ m\ [x]          &  & \equiv x.
     \end{align*}
     Then summing over $\iota.4$ would be
     \begin{equation*}
@@ -200,7 +200,7 @@ def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
 
     \texttt{(n-)} can be seen as a function. (CL does have \texttt{1- 1+}) Or generally,
     \begin{equation*}
-        \mathsf{foldr}\ (\textsf{n-})\ z\ l\ \iota.n = (\textsf{n-})^{\circ n}\ z
+        \mathsf{foldr}\ (\textsf{n-})\ z\ l\ \iota.n = (\textsf{n-})^{\circ\,n - 1}\ z
     \end{equation*}
     \begin{itemize}
         \item how about constructing monoid from function composition\dots
@@ -222,14 +222,14 @@ def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
     Now \textsf{foldr} would be
     \begin{leancode}
         def foldr (f: α -> β -> β) (init: β) (xs: List α): β :=
-            List.map f xs |> reduce compose_monoid <| init
+            f <$> xs |> reduce compose_monoid <| init
     \end{leancode}
     \textsf{foldl} is tricky:
     \mint[fontsize=\footnotesize]{cl}|(foldl #'- 0 (iota 4)) ; => ((-4 (-3 (-2 (-1 x)))) 0).|
     since it's \mintinline[fontsize=\footnotesize]{cl}{(f init xs_i)} instead of \mintinline[fontsize=\footnotesize]{cl}{(f xs_i init)}. Meaning we'll pre-fill rvalue without evaluating the whole call.
     \begin{leancode}
         def fold_left (f: α -> β -> α) (init: α) (xs: List β): α :=
-            xs.map (λ x => λ init => f init x) 
+            (λ x => λ init => f init x) <$> xs
             |> reduce compose_monoid <| init
     \end{leancode}
 
@@ -256,7 +256,7 @@ def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
     \begin{itemize}
         \item factor out the folding function $f$ in terms of
               \begin{equation*}
-                  f\ z\ l = op\ z\ (g\ l)
+                  f\ z\ l = \op z\ (g\ l)
               \end{equation*}
         \item requires ingenuity
     \end{itemize}
@@ -304,7 +304,7 @@ def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
 
     def int_foldr_sub (init: Int) (xs: List Int) : Int :=
         let fst := 
-            xs.map (fun x: Int => (x, false)) 
+            (fun x: Int => (x, false)) <$> xs
                 |> reduce sub_monoid |> Prod.fst
         if xs.length &&& 1 == 0 then init + fst else init - fst
 \end{leancode}
@@ -348,7 +348,7 @@ def parreduce [Inhabited α] (m : Monoid α) (xs : ListSlice α) : α :=
     \end{leancode}
 \end{frame}
 \begin{frame}[fragile]
-    We denote left composition i.e. $f,g\mapsto (x\mapsto f\ x \rhd g)$ as \mintinline{lean4}|~>| for the sake of brevity:
+    We denote left composition i.e. $f,g\mapsto (x\mapsto f\ x \rhd g)$ as $\rightsquigarrow$ for the sake of brevity:
 \begin{leancode}
     def comp_left (f: α -> β) (g: β -> γ): α -> γ := (λ x => f x |> g)
     infixl: 20 " ~> " => comp_left

@@ -2,10 +2,10 @@ import Lake
 open Lake DSL
 
 package «lean-fp» {
-  moreLinkArgs := #[
-    "-L./.lake/packages/LeanCopilot/.lake/build/lib",
-    "-lctranslate2"
-  ]
+  -- moreLinkArgs := #[
+  --   "-L./.lake/packages/LeanCopilot/.lake/build/lib",
+  --   "-lctranslate2"
+  -- ]
 }
 
 lean_lib «LeanFp» where
@@ -15,4 +15,4 @@ lean_lib «LeanFp» where
 lean_exe «lean-fp» where
   root := `Main
 
-require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.5.0"
+-- require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.5.0"
