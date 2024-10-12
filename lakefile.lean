@@ -16,3 +16,6 @@ lean_exe «lean-fp» where
   root := `Main
 
 -- require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.5.0"
+
+require mathlib from git
+  "https://github.com/leanprover-community/mathlib4" @ "v4.12.0"

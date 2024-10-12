@@ -135,7 +135,7 @@ def ackermann: ℕ -> ℕ -> ℕ
   | m + 1, 0 => ackermann m 1
   | m + 1, n + 1 => ackermann m (ackermann (m + 1) n)
 
-
+section μtype
 unsafe inductive μ (α : Type u) : Type u
   | fold : (μ α -> α) -> μ α
 
@@ -147,7 +147,7 @@ unsafe def M (x : μ α) : α := unfold x x
 unsafe def fix (t : (α -> α) -> α -> α) : α -> α :=
   let Wt : μ (α -> α) := .fold (λ f => t (unfold f f))
   M Wt
-
+end μtype
 -- unsafe def fix (f : (α -> α) -> α -> α) : α -> α :=
 --   let M: μ (α -> α) := μ.fold (λ x => (unfold x x))
 --   let W := μ.fold (λ x => (λ y => x unfold (y y)))
@@ -156,7 +156,7 @@ unsafe def fix (t : (α -> α) -> α -> α) : α -> α :=
 unsafe def gen_factorial (f : ℕ -> ℕ) (n : ℕ) : ℕ :=
   if n = 0 then 1 else n * f (n - 1)
 
-#eval fix gen_factorial 25
+-- #eval fix gen_factorial 25
 
 unsafe def fix_rec (f : (α -> α) -> α -> α) (x) := f (fix_rec f) x
 
