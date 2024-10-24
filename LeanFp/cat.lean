@@ -1,3 +1,4 @@
+import LeanFp.Basic
 #check Empty
 
 def factorizer : (γ -> α) -> (γ -> β) -> (γ -> α × β)
@@ -271,11 +272,11 @@ instance : Functor NatF where
   | .ZeroF => .ZeroF
   | .SuccF a => .SuccF $ f a
 
-def fib : NatF (Int × Int) -> Int × Int -- An algebra
+def alg_fib : NatF (Int × Int) -> Int × Int -- An algebra
   | .ZeroF => (1, 1)
   | .SuccF (m, n) => (n, m + n)
 
-#check cata fib
+#check cata alg_fib
 
 inductive ListF (e : Type) (α : Type) where
   | nilF
@@ -294,9 +295,11 @@ instance : Functor (ListF e) where
   | .consF e a => .consF e (f a)
 
 section open NatF Fix ListF
-#eval cata fib <| fix $ SuccF $ fix $ SuccF $ fix $ SuccF $ fix ZeroF
+unsafe abbrev three := fix $ SuccF $ fix $ SuccF $ fix $ SuccF $ fix ZeroF
+#eval cata alg_fib <| three
 #check fix $ SuccF $ fix $ ZeroF
-#check fix ZeroF -- the solution to NatF A ~= A i.e. fix ZeroF === Nat.zero
+#check fix ZeroF  -- Fix NatF === Nat
+                  -- the solution to NatF A ~= A i.e. fix ZeroF === Nat.zero
 /-
 `f` is unified by the typechecker to be NatF
 `NatF A` is unified by `f (Fix f)` which in this case is `NatF (Fix NatF)`
@@ -308,8 +311,31 @@ thus A is `Fix NatF`
                      fix $ consF 1 $
                      fix nilF
 /- equivalent of -/ #eval [1,2,3,4].foldr (λ _ x => x + 1) 0
+
+unsafe def fixed_nat_of_nat (x : Fix NatF) (acc : Int := 0) : Int :=
+  match unfix x with
+  | .ZeroF => acc
+  | .SuccF p => fixed_nat_of_nat p (acc + 1)
+
+def alg_nat_of_nat : NatF Int -> Int
+  | .ZeroF => 0
+  | .SuccF x => x + 1 -- x act as a counter.
+#eval [3,fixed_nat_of_nat three, cata alg_nat_of_nat three].all (· == 3)
+
+
+unsafe def nat_of_fixed_nat : Nat -> Fix NatF
+  | 0 => fix ZeroF
+  | n => fix $ SuccF $ nat_of_fixed_nat (n - 1)
+#eval fixed_nat_of_nat <| nat_of_fixed_nat 25
+
+/--
+the 1st `Int` tracks the current number, the other one is the accumulator.
+-/
+def alg_fact : NatF (Int × Int) -> Int × Int
+  | .ZeroF => (1, 1) -- in the case of factorial, we map ZeroF to 1. otherwise its all zero.
+  | .SuccF (x, y) => (x + 1, x * y)
+open Basic.μtype(genfact fix) in #eval
+  let fact25₁ := nat_of_fixed_nat 25 |> cata alg_fact |>.2
+  let fact25₂ := fix genfact 25
+  (fact25₁ == fact25₂, fact25₁)
 end
-
-#check Nat -- (Nat, [.zero, .succ]) is a initial F-algebra.
-
-#check @Nat.zero
